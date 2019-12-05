@@ -488,41 +488,23 @@ mod test {
     }
 
     macro_rules! distance_of {
-        ([$($route1:ident $num1:expr),+], [$($route2:ident $num2:expr),+] = $dist:expr) => {
+        ([$($route1:ident $num1:expr),+], [$($route2:ident $num2:expr),+] = ($d1:expr, $d2:expr)) => {
             let route1 = route_vec!([$($route1 $num1,)+]);
             let route2 = route_vec!([$($route2 $num2,)+]);
-            let (dist, _) = run(route1, route2);
-            assert_eq!(dist, $dist);
-        }
-    }
-
-    macro_rules! min_sum_distance_of {
-        ([$($route1:ident $num1:expr),+], [$($route2:ident $num2:expr),+] = $dist:expr) => {
-            let route1 = route_vec!([$($route1 $num1,)+]);
-            let route2 = route_vec!([$($route2 $num2,)+]);
-            let (_, dist) = run(route1, route2);
-            assert_eq!(dist, $dist);
+            let (d1, d2) = run(route1, route2);
+            assert_eq!(d1, $d1);
+            assert_eq!(d2, $d2);
         }
     }
 
     #[test]
-    fn manhattan_distance() {
+    fn distance_tests() {
         distance_of!(
             [R 75, D 30, R 83, U 83, L 12, D 49, R 71, U  7, L 72],
-            [U 62, R 66, U 55, R 34, D 71, R 55, D 58, R 83] = 159);
+            [U 62, R 66, U 55, R 34, D 71, R 55, D 58, R 83] = (159, 610));
         distance_of!(
             [R 98, U 47, R 26, D 63, R 33, U 87, L 62, D 20, R 33, U 53, R 51],
-            [U 98, R 91, D 20, R 16, D 67, R 40, U  7, R 15, U  6, R  7] = 135);
-    }
-
-    #[test]
-    fn min_sum_distance() {
-        min_sum_distance_of!(
-            [R 75, D 30, R 83, U 83, L 12, D 49, R 71, U  7, L 72],
-            [U 62, R 66, U 55, R 34, D 71, R 55, D 58, R 83] = 610);
-        min_sum_distance_of!(
-            [R 98, U 47, R 26, D 63, R 33, U 87, L 62, D 20, R 33, U 53, R 51],
-            [U 98, R 91, D 20, R 16, D 67, R 40, U  7, R 15, U  6, R  7] = 410);
+            [U 98, R 91, D 20, R 16, D 67, R 40, U  7, R 15, U  6, R  7] = (135, 410));
     }
 }
 
