@@ -428,21 +428,23 @@ mod test {
 
     #[test]
     fn segments_cross() {
-        // two vertical
+        // two vertical | |
         segments_cross!((( 0,  1), ( 0, -1)) <---> (( 0,  2), ( 0, -2)));
-        // two horizontal
+        // two horizontal =
         segments_cross!((( 1,  0), (-1,  0)) <---> (( 2,  0), (-2,  0)));
-        // too far left
+        // too far left - |
         segments_cross!(((-1,  0), ( 1,  0)) <---> ((-2,  1), (-2, -1)));
-        // too far right
+        // too far right | -
         segments_cross!(((-1,  0), ( 1,  0)) <---> (( 2,  1), ( 2, -1)));
-        // too far up
+        // too far up |
+        //            -
         segments_cross!((( 2, -1), ( 2,  1)) <---> ((-1,  0), ( 1,  0)));
-        // too far down
+        // too far down -
+        //              |
         segments_cross!(((-2, -1), (-2,  1)) <---> ((-1,  0), ( 1,  0)));
-        // cross
+        // cross +
         segments_cross!(((-1,  0), ( 1,  0)) <-|-> (( 0, -1), ( 0,  1)) @ (0, 0));
-        // on-edge should not cross
+        // on-edge should not cross -|
         segments_cross!(((-1,  0), ( 1,  0)) <---> (( 1, -1), ( 1,  1)));
     }
 
