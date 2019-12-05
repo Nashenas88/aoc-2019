@@ -1,12 +1,9 @@
-use std::{
-    fs::File,
-    io::Read,
-};
+use std::{fs::File, io::Read};
 
 enum OpCode {
-    Add{r1: usize, r2: usize, o: usize},
-    Mul{r1: usize, r2: usize, o: usize},
-    Exit
+    Add { r1: usize, r2: usize, o: usize },
+    Mul { r1: usize, r2: usize, o: usize },
+    Exit,
 }
 
 impl OpCode {
@@ -16,12 +13,12 @@ impl OpCode {
             1 => OpCode::Add {
                 r1: mem[idx + 1],
                 r2: mem[idx + 2],
-                o:  mem[idx + 3]
+                o: mem[idx + 3],
             },
             2 => OpCode::Mul {
                 r1: mem[idx + 1],
                 r2: mem[idx + 2],
-                o:  mem[idx + 3]
+                o: mem[idx + 3],
             },
             99 => OpCode::Exit,
             _ => panic!(format!("Unexpected opcode: {}", op_code)),
@@ -30,32 +27,29 @@ impl OpCode {
 
     fn exec(self, mem: &mut [usize]) -> bool {
         match self {
-            OpCode::Add { r1, r2, o} => {
+            OpCode::Add { r1, r2, o } => {
                 let res = mem[r1] + mem[r2];
                 mem[o] = res;
                 true
-            },
+            }
             OpCode::Mul { r1, r2, o } => {
                 let res = mem[r1] * mem[r2];
                 mem[o] = res;
                 true
-            },
+            }
             OpCode::Exit => false,
         }
     }
 }
 
 struct Program<'a> {
-    mem: &'a mut[usize],
+    mem: &'a mut [usize],
     ctr: usize,
 }
 
 impl<'a> Program<'a> {
     fn new(mem: &'a mut [usize]) -> Self {
-        Program {
-            mem,
-            ctr: 0,
-        }
+        Program { mem, ctr: 0 }
     }
 
     fn noun(&mut self, noun: usize) {
@@ -106,12 +100,20 @@ fn main() -> Result<(), String> {
 }
 
 fn parse() -> Result<Vec<usize>, String> {
-    let mut file = File::open("day2/input.txt").map_err(|e| format!("Failed to open input: {}", e))?;
+    let mut file =
+        File::open("day2/input.txt").map_err(|e| format!("Failed to open input: {}", e))?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents).map_err(|e| format!("Failed to read file: {}", e))?;
+    file.read_to_string(&mut contents)
+        .map_err(|e| format!("Failed to read file: {}", e))?;
     Ok(contents
         .split(",")
-        .filter_map(|s| { if s == "\n" { None } else { s.parse::<usize>().ok() }})
+        .filter_map(|s| {
+            if s == "\n" {
+                None
+            } else {
+                s.parse::<usize>().ok()
+            }
+        })
         .collect::<Vec<_>>())
 }
 
@@ -120,11 +122,14 @@ fn test_run() {
     helper(&mut [1, 0, 0, 0, 99], &[2, 0, 0, 0, 99]);
     helper(&mut [2, 3, 0, 3, 99], &[2, 3, 0, 6, 99]);
     helper(&mut [2, 4, 4, 5, 99, 0], &[2, 4, 4, 5, 99, 9801]);
-    helper(&mut [1, 1, 1, 4, 99, 5, 6, 0, 99], &[30, 1, 1, 4, 2, 5, 6, 0, 99]);
+    helper(
+        &mut [1, 1, 1, 4, 99, 5, 6, 0, 99],
+        &[30, 1, 1, 4, 2, 5, 6, 0, 99],
+    );
 }
 
 #[cfg(test)]
-fn helper(input: &mut[usize], expected: &[usize]) {
+fn helper(input: &mut [usize], expected: &[usize]) {
     let program = Program::new(input);
     program.run();
     for (l, r) in input.iter().zip(expected.iter()) {

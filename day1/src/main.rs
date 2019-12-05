@@ -11,7 +11,9 @@ fn main() -> Result<(), String> {
             break;
         }
 
-        let mass = buffer[0..buffer.len() - 1].parse::<u64>().map_err(|e| format!("Error parsing {}: {}", buffer, e))?;
+        let mass = buffer[0..buffer.len() - 1]
+            .parse::<u64>()
+            .map_err(|e| format!("Error parsing {}: {}", buffer, e))?;
         sum += all_fuel_for(mass);
         buffer.clear();
     }

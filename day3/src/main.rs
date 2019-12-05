@@ -1,12 +1,11 @@
 use std::{
+    collections::HashMap,
     fmt::{self, Debug, Formatter},
     fs::File,
     io::{prelude::*, BufReader},
-    collections::HashMap,
     num::ParseIntError,
     str::FromStr,
 };
-
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 struct Point {
@@ -72,55 +71,55 @@ impl Segment {
             | (Polarity::Vertical { .. }, Polarity::Vertical { .. }) => None,
             (
                 Polarity::Vertical {
-                    low:  v_low,
+                    low: v_low,
                     high: v_high,
-                    bar:  v_bar,
+                    bar: v_bar,
                 },
                 Polarity::Horizontal {
-                    low:  h_low,
+                    low: h_low,
                     high: h_high,
-                    bar:  h_bar,
+                    bar: h_bar,
                 },
             )
             | (
                 Polarity::Horizontal {
-                    low:  h_low,
+                    low: h_low,
                     high: h_high,
-                    bar:  h_bar,
+                    bar: h_bar,
                 },
                 Polarity::Vertical {
-                    low:  v_low,
+                    low: v_low,
                     high: v_high,
-                    bar:  v_bar,
+                    bar: v_bar,
                 },
             ) => {
                 if h_bar <= v_low || h_bar >= v_high || v_bar <= h_low || v_bar >= h_high {
                     None
                 } else {
-                    Some(Point {
-                        x: v_bar,
-                        y: h_bar,
-                    })
+                    Some(Point { x: v_bar, y: h_bar })
                 }
             }
         };
 
-        point.map(|p|
-            (p, self.0.flat_distance_to(&p), other.0.flat_distance_to(&p))
-        )
+        point.map(|p| (p, self.0.flat_distance_to(&p), other.0.flat_distance_to(&p)))
     }
 
     fn length(&self) -> u64 {
         match self.polarity() {
-            Polarity::Vertical {low, high, ..} | Polarity::Horizontal{low, high, ..} =>
+            Polarity::Vertical { low, high, .. } | Polarity::Horizontal { low, high, .. } => {
                 (high - low) as u64
+            }
         }
     }
 }
 
 impl Debug for Segment {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{{({}, {}) - ({}, {})}}", self.0.x, self.0.y, self.1.x, self.1.y)
+        write!(
+            f,
+            "{{({}, {}) - ({}, {})}}",
+            self.0.x, self.0.y, self.1.x, self.1.y
+        )
     }
 }
 
@@ -162,16 +161,28 @@ impl Runner {
     fn new() -> Self {
         Self {
             path: vec![],
-            cursor: Point{x: 0, y: 0},
+            cursor: Point { x: 0, y: 0 },
         }
     }
 
     fn follow(&mut self, route: Route) {
         let next = match route {
-            Route::Up(u)    => Point{y: self.cursor.y + u as i64, ..self.cursor},
-            Route::Down(d)  => Point{y: self.cursor.y - d as i64, ..self.cursor},
-            Route::Left(l)  => Point{x: self.cursor.x - l as i64, ..self.cursor},
-            Route::Right(r) => Point{x: self.cursor.x + r as i64, ..self.cursor},
+            Route::Up(u) => Point {
+                y: self.cursor.y + u as i64,
+                ..self.cursor
+            },
+            Route::Down(d) => Point {
+                y: self.cursor.y - d as i64,
+                ..self.cursor
+            },
+            Route::Left(l) => Point {
+                x: self.cursor.x - l as i64,
+                ..self.cursor
+            },
+            Route::Right(r) => Point {
+                x: self.cursor.x + r as i64,
+                ..self.cursor
+            },
         };
 
         let segment = Segment(self.cursor, next);
@@ -217,7 +228,11 @@ fn run(route1: Vec<Route>, route2: Vec<Route>) -> (u64, u64) {
         s1sum += s1.length();
     }
 
-    let min_manhattan = crosses.into_iter().map(|p| p.manhattan_distance()).min().unwrap();
+    let min_manhattan = crosses
+        .into_iter()
+        .map(|p| p.manhattan_distance())
+        .min()
+        .unwrap();
     let min_sum_dist = cross_distances.into_iter().map(|(_, v)| v).min().unwrap();
     (min_manhattan, min_sum_dist)
 }
@@ -269,7 +284,7 @@ mod test {
             assert_eq!($seg.0.y, $y1);
             assert_eq!($seg.1.x, $x2);
             assert_eq!($seg.1.y, $y2);
-        }
+        };
     }
 
     #[test]
@@ -344,8 +359,11 @@ mod test {
 }
 
 fn parse_line(reader: &mut BufReader<File>, buffer: &mut String) -> Result<Vec<Route>, String> {
-    reader.read_line(buffer).map_err(|e| format!("Could not read file: {}", e))?;
-    Ok(buffer.split(",")
+    reader
+        .read_line(buffer)
+        .map_err(|e| format!("Could not read file: {}", e))?;
+    Ok(buffer
+        .split(",")
         .filter_map(|s| {
             if s.len() <= 1 {
                 return None;
