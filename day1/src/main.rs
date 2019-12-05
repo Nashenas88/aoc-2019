@@ -23,10 +23,14 @@ fn main() -> Result<(), String> {
     Ok(())
 }
 
+// Calculate the fuel required for a particular mass
 fn fuel_for(mass: u64) -> u64 {
     (mass / 3).saturating_sub(2)
 }
 
+// Calculate the actual fuel required for a particular
+// mass. Since each subsequent calculation requires
+// less fuel, we're able to iterate to a fixed point.
 fn all_fuel_for(mass: u64) -> u64 {
     let mut sum = fuel_for(mass);
     let mut last_sum = sum;

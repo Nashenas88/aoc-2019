@@ -24,79 +24,97 @@ impl Point {
 }
 
 enum Polarity {
-    Vertical { low: i64, high: i64, bar: i64 },
-    Horizontal { low: i64, high: i64, bar: i64 },
+    Vertical,
+    Horizontal,
+}
+
+#[allow(dead_code)]
+impl Polarity {
+    fn is_horizontal(&self) -> bool {
+        match self {
+            Polarity::Horizontal => true,
+            _ => false,
+        }
+    }
+
+    fn is_vertical(&self) -> bool {
+        match self {
+            Polarity::Vertical => true,
+            _ => false,
+        }
+    }
+}
+
+struct Bounds {
+    low: i64,
+    high: i64,
+    bar: i64,
 }
 
 struct Segment(Point, Point);
 
 impl Segment {
-    /// Generates a new `Segment` with the first element being,
-    /// whichever point is closer to the origin
-    fn polarity(&self) -> Polarity {
+    fn polarity_and_bounds(&self) -> (Polarity, Bounds) {
         if self.0.x == self.1.x {
             if self.0.y < self.1.y {
-                Polarity::Vertical {
-                    low: self.0.y,
-                    high: self.1.y,
-                    bar: self.0.x,
-                }
+                (
+                    Polarity::Vertical,
+                    Bounds {
+                        low: self.0.y,
+                        high: self.1.y,
+                        bar: self.0.x,
+                    },
+                )
             } else {
-                Polarity::Vertical {
-                    low: self.1.y,
-                    high: self.0.y,
-                    bar: self.0.x,
-                }
+                (
+                    Polarity::Vertical,
+                    Bounds {
+                        low: self.1.y,
+                        high: self.0.y,
+                        bar: self.0.x,
+                    },
+                )
             }
         } else {
             if self.0.x < self.1.x {
-                Polarity::Horizontal {
-                    low: self.0.x,
-                    high: self.1.x,
-                    bar: self.0.y,
-                }
+                (
+                    Polarity::Horizontal,
+                    Bounds {
+                        low: self.0.x,
+                        high: self.1.x,
+                        bar: self.0.y,
+                    },
+                )
             } else {
-                Polarity::Horizontal {
-                    low: self.1.x,
-                    high: self.0.x,
-                    bar: self.0.y,
-                }
+                (
+                    Polarity::Horizontal,
+                    Bounds {
+                        low: self.1.x,
+                        high: self.0.x,
+                        bar: self.0.y,
+                    },
+                )
             }
         }
     }
 
     fn crosses(&self, other: &Segment) -> Option<(Point, u64, u64)> {
-        let point = match (self.polarity(), other.polarity()) {
-            (Polarity::Horizontal { .. }, Polarity::Horizontal { .. })
-            | (Polarity::Vertical { .. }, Polarity::Vertical { .. }) => None,
-            (
-                Polarity::Vertical {
-                    low: v_low,
-                    high: v_high,
-                    bar: v_bar,
-                },
-                Polarity::Horizontal {
-                    low: h_low,
-                    high: h_high,
-                    bar: h_bar,
-                },
-            )
-            | (
-                Polarity::Horizontal {
-                    low: h_low,
-                    high: h_high,
-                    bar: h_bar,
-                },
-                Polarity::Vertical {
-                    low: v_low,
-                    high: v_high,
-                    bar: v_bar,
-                },
-            ) => {
-                if h_bar <= v_low || h_bar >= v_high || v_bar <= h_low || v_bar >= h_high {
+        let point = match (self.polarity_and_bounds(), other.polarity_and_bounds()) {
+            ((Polarity::Horizontal, ..), (Polarity::Horizontal, ..))
+            | ((Polarity::Vertical, ..), (Polarity::Vertical, ..)) => None,
+            ((Polarity::Vertical, v_bounds), (Polarity::Horizontal, h_bounds))
+            | ((Polarity::Horizontal, h_bounds), (Polarity::Vertical, v_bounds)) => {
+                if h_bounds.bar <= v_bounds.low
+                    || h_bounds.bar >= v_bounds.high
+                    || v_bounds.bar <= h_bounds.low
+                    || v_bounds.bar >= h_bounds.high
+                {
                     None
                 } else {
-                    Some(Point { x: v_bar, y: h_bar })
+                    Some(Point {
+                        x: v_bounds.bar,
+                        y: h_bounds.bar,
+                    })
                 }
             }
         };
@@ -105,10 +123,8 @@ impl Segment {
     }
 
     fn length(&self) -> u64 {
-        match self.polarity() {
-            Polarity::Vertical { low, high, .. } | Polarity::Horizontal { low, high, .. } => {
-                (high - low) as u64
-            }
+        match self.polarity_and_bounds() {
+            (_, Bounds { low, high, .. }) => (high - low) as u64,
         }
     }
 }
@@ -209,32 +225,184 @@ fn run(route1: Vec<Route>, route2: Vec<Route>) -> (u64, u64) {
     let segments2 = runner2.finish();
 
     // This whole section could definitely be optimized...
-    let mut crosses = vec![];
-    let mut cross_distances = HashMap::<Point, u64>::new();
-    let mut s1sum = 0;
-    for s1 in &segments1 {
-        let mut s2sum = 0;
-        for s2 in &segments2 {
-            if let Some((p, s1dist, s2dist)) = s1.crosses(s2) {
-                crosses.push(p);
-                if !cross_distances.contains_key(&p) {
-                    cross_distances.insert(p, s1sum + s1dist + s2sum + s2dist);
+    // O(n*m)
+    #[cfg(not(feature = "optimized"))]
+    {
+        let mut crosses = vec![];
+        let mut cross_distances = HashMap::<Point, u64>::new();
+        let mut s1sum = 0;
+        for s1 in &segments1 {
+            let mut s2sum = 0;
+            for s2 in &segments2 {
+                if let Some((p, s1dist, s2dist)) = s1.crosses(s2) {
+                    crosses.push(p);
+                    if !cross_distances.contains_key(&p) {
+                        cross_distances.insert(p, s1sum + s1dist + s2sum + s2dist);
+                    }
                 }
+
+                s2sum += s2.length();
             }
 
-            s2sum += s2.length();
+            s1sum += s1.length();
         }
 
-        s1sum += s1.length();
+        let min_manhattan = crosses
+            .into_iter()
+            .map(|p| p.manhattan_distance())
+            .min()
+            .unwrap();
+        let min_sum_dist = cross_distances.into_iter().map(|(_, v)| v).min().unwrap();
+        (min_manhattan, min_sum_dist)
     }
 
-    let min_manhattan = crosses
-        .into_iter()
-        .map(|p| p.manhattan_distance())
-        .min()
-        .unwrap();
-    let min_sum_dist = cross_distances.into_iter().map(|(_, v)| v).min().unwrap();
-    (min_manhattan, min_sum_dist)
+    // optimized
+    // O(n log n + m log m)
+
+    #[cfg(feature = "optimized")]
+    {
+        struct ComputeData {
+            segment: Segment,
+            polarity: Polarity,
+            bounds: Bounds,
+            previous_length: u64,
+        }
+        // First we compute the lengths to get to each segment
+        // and store them together
+        fn compute_data(seg: Vec<Segment>) -> Vec<ComputeData> {
+            let mut length = 0;
+            seg.into_iter()
+                .map(|segment| {
+                    let next_length = segment.length();
+                    let (polarity, bounds) = segment.polarity_and_bounds();
+                    let result = ComputeData {
+                        segment,
+                        polarity,
+                        bounds,
+                        previous_length: length,
+                    };
+                    length += next_length;
+                    result
+                })
+                .collect()
+        }
+        let data1 = compute_data(segments1);
+        let data2 = compute_data(segments2);
+
+        // Next we split each segment into horizontal and vertical
+        // vectors, then sort them according to their horizontal component
+        fn partition_and_sort(seg: &[ComputeData]) -> (Vec<&ComputeData>, Vec<&ComputeData>) {
+            let (mut horizontals, mut verticals): (Vec<_>, Vec<_>) =
+                seg.iter().partition(|data| data.polarity.is_horizontal());
+            horizontals.sort_by_key(|data| data.segment.0.x);
+            verticals.sort_by_key(|data| data.segment.0.x);
+            (horizontals, verticals)
+        }
+        let (h1s, v1s) = partition_and_sort(&data1);
+        let (h2s, v2s) = partition_and_sort(&data2);
+
+        // now we can iterate over each horizontal and vertical pair in O(n+m)
+        fn find_manhattan_and_min_sum_distances(
+            horizontals: &[&ComputeData],
+            verticals: &[&ComputeData],
+        ) -> (u64, u64) {
+            let mut h_iter = horizontals.iter();
+            let mut v_iter = verticals.iter();
+            let h_item = h_iter.next();
+            let v_item = v_iter.next();
+
+            // huh? Why the inner stuff here?
+            // We might run into cases where there are multiple horizontals
+            // and verticals crossing each other (think of the pound sign -> #).
+            // Iterating to the next vertical or horizontal after a successful
+            // intersection would be incorrect. Here, I've chosen to clone the
+            // verticals' iterator and run nested checks against the following
+            // vertical segments until they extend past the current horizontal
+            // segment. After that nested scan is complete, we could then move
+            // on to the next horizontal segment in the outer loop.          ^
+            // P.S. would you look at that alignment!? ----------------------^
+            fn inner_find<'a>(
+                mut h_item: Option<&'a &'a ComputeData>,
+                mut v_item: Option<&'a &'a ComputeData>,
+                h_iter: &mut impl Iterator<Item = &'a &'a ComputeData>,
+                v_iter: &mut (impl Iterator<Item = &'a &'a ComputeData> + Clone),
+                nested: bool,
+            ) -> (u64, u64) {
+                let mut min_manhattan = std::u64::MAX;
+                let mut min_sum = std::u64::MAX;
+
+                while let (Some(h_data), Some(v_data)) = (h_item, v_item) {
+                    // In these cases, the vertical segment doesn't intersect, and
+                    // there still might be other vertical segments that could
+                    // intersect with this horizontal segment (due to sorting by x)
+                    // so just move to the next vertical segment.
+                    if v_data.bounds.bar <= h_data.bounds.low
+                        || h_data.bounds.bar <= v_data.bounds.low
+                        || h_data.bounds.bar >= v_data.bounds.high
+                    {
+                        v_item = v_iter.next();
+                        continue;
+                    }
+
+                    // Here the vertical segment is beyond the current horizontal
+                    // segment. Given that we sort by x, no more vertical
+                    // segments will intersect with this horizontal segment. Move
+                    // to the next horizontal segment. If we're in the nested
+                    // loop, then just exit. The outer loop will increment for us.
+                    if v_data.bounds.bar >= h_data.bounds.high {
+                        if nested {
+                            return (min_manhattan, min_sum);
+                        }
+
+                        h_item = h_iter.next();
+                        continue;
+                    }
+
+                    let p = Point {
+                        x: v_data.bounds.bar,
+                        y: h_data.bounds.bar,
+                    };
+
+                    let p_manhattan = p.manhattan_distance();
+                    if p_manhattan < min_manhattan {
+                        min_manhattan = p_manhattan;
+                    }
+
+                    let p_min_sum = h_data.previous_length
+                        + h_data.segment.0.flat_distance_to(&p)
+                        + v_data.previous_length
+                        + v_data.segment.0.flat_distance_to(&p);
+                    if p_min_sum < min_sum {
+                        min_sum = p_min_sum;
+                    }
+
+                    if nested {
+                        v_item = v_iter.next();
+                        continue;
+                    }
+
+                    let (inner_manhattan, inner_min_sum) =
+                        inner_find(h_item, v_item, h_iter, &mut v_iter.clone(), true);
+                    if inner_manhattan < min_manhattan {
+                        min_manhattan = inner_manhattan;
+                    }
+                    if inner_min_sum < min_sum {
+                        min_sum = inner_min_sum;
+                    }
+                    h_item = h_iter.next();
+                }
+
+                (min_manhattan, min_sum)
+            }
+
+            inner_find(h_item, v_item, &mut h_iter, &mut v_iter, false)
+        }
+
+        let (manhattan_a, min_sum_a) = find_manhattan_and_min_sum_distances(&h1s, &v2s);
+        let (manhattan_b, min_sum_b) = find_manhattan_and_min_sum_distances(&h2s, &v1s);
+
+        (manhattan_a.min(manhattan_b), min_sum_a.min(min_sum_b))
+    }
 }
 
 #[cfg(test)]

@@ -57,7 +57,7 @@ impl ValidPassword for u32 {
             b = n / 10 % 10;
         }
 
-        bucket.into_iter().any(|c| *c == 1)
+        bucket.iter().any(|c| *c == 1)
     }
 }
 
@@ -139,12 +139,11 @@ impl Iterator for PasswordCounter2 {
     }
 }
 fn main() {
-    let valid_range = 123257..=647015;
-    // let real_valid_range = 123333..=599999;
+    let valid_range = 123_257..=647_015;
     let counter = PasswordCounter::new(valid_range.clone());
-    let total_valid: u32 = counter.into_iter().map(|_| 1).sum();
+    let total_valid: u32 = counter.map(|_| 1).sum();
     println!("Hello, world! {}", total_valid);
     let counter = PasswordCounter2::new(valid_range);
-    let total_valid: u32 = counter.into_iter().map(|_| 1).sum();
+    let total_valid: u32 = counter.map(|_| 1).sum();
     println!("Hello, world! {}", total_valid);
 }
