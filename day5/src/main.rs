@@ -133,10 +133,9 @@ impl OpCode {
             OpCode::Add { r1, r2, o } => mem[o] = r1.val(mem) + r2.val(mem),
             OpCode::Mul { r1, r2, o } => mem[o] = r1.val(mem) * r2.val(mem),
             OpCode::Ipt { adr } => {
-                let buffer = io.read();
-                mem[adr] = buffer.trim().parse().expect("Failed to parse input");
+                mem[adr] = io.read().trim().parse().expect("Failed to parse input")
             }
-            OpCode::Opt { o } => println!("{}", o.val(mem)),
+            OpCode::Opt { o } => io.write(&format!("{}", o.val(mem))),
             OpCode::Jtr { r1, jmp } => {
                 if r1.val(mem) != 0 {
                     return Incr::Jump(jmp.val(mem) as usize);
@@ -266,8 +265,16 @@ mod test {
             let io = MockIo::new();
             let mem = $mem;
             let program = Program::new(mem, &io);
+            let expected = $expected;
             program.run();
-            for (i, (l, r)) in mem.iter().zip($expected.iter()).enumerate() {
+            assert_eq!(
+                mem.len(),
+                expected.len(),
+                "mem and expected mem are not the same length:\n{:?}\n{:?}",
+                &mem[..],
+                &expected[..]
+            );
+            for (i, (l, r)) in mem.iter().zip(expected.iter()).enumerate() {
                 assert_eq!(l, r, "mem mismatch at idx {}", i);
             }
         };
@@ -310,12 +317,27 @@ mod test {
         ($mem:expr, $expected:expr, $input:expr, $output:expr $(,)?) => {
             let io = MockIo::with_input($input);
             let mem = $mem;
+            let expected = $expected;
             let program = Program::new(mem, &io);
             program.run();
-            for (i, (l, r)) in mem.iter().zip($expected.iter()).enumerate() {
+            assert_eq!(
+                mem.len(),
+                expected.len(),
+                "mem and expected mem are not the same length:\n{:?}\n{:?}",
+                &mem[..],
+                &expected[..]
+            );
+            for (i, (l, r)) in mem.iter().zip(expected.iter()).enumerate() {
                 assert_eq!(l, r, "mem mismatch at idx {}", i);
             }
             let output: &[&str] = $output;
+            assert_eq!(
+                io.output.borrow().len(),
+                output.len(),
+                "output and expected output are not the same length:\n{:?}\n{:?}",
+                &io.output.borrow()[..],
+                &output[..]
+            );
             for (i, (l, r)) in io.output.borrow().iter().zip(output.iter()).enumerate() {
                 assert_eq!(l, r, "output mismatch at idx {}", i);
             }
@@ -385,6 +407,10 @@ mod test {
 
     #[test]
     fn position_op_jtr_executes_jump_if_val_true() {
+        // Read "1" from input and store it in address 12
+        // Jump to the value at address 15 (address 9) because the value
+        // at address 12 is not equal to 0 (1). Print the value at
+        // address 14 (1).
         #[rustfmt::skip]
         validate_program_with_io!(
             &mut [3, 12, 5, 12, 15, 2, 13, 14, 14, 4, 14, 99, -1, 0, 1, 9],
@@ -393,6 +419,11 @@ mod test {
             &["1"],
         );
 
+        // Same as above, but ensure we don't only consider 1 to be "true".
+        // Read "-1" from input and store it in address 12
+        // Jump to the value at address 15 (address 9) because the value
+        // at address 12 is not equal to 0 (-1). Print the value at
+        // address 14 (1).
         #[rustfmt::skip]
         validate_program_with_io!(
             &mut [3, 12, 5, 12, 15, 2, 13, 14, 14, 4, 14, 99, -1, 0, 1, 9],
@@ -404,14 +435,12 @@ mod test {
 
     #[test]
     fn position_op_jtr_does_not_execute_jump_if_val_false() {
+        // Read input "0" into address 12
+        // Do not jump to the address specified at address 15 (9)
+        // because address 12 is 0. Output the value in address
+        // 13 (0).
         #[rustfmt::skip]
         validate_program_with_io!(
-            // Read input "0" into address 12
-            // Do not jump to address 15 because address 12 is not 1
-            // Add values at address 13 and at address 14 and
-            // the result in address 13.
-            // Output the value in address 13.
-            // Exit
             &mut [3, 12, 5, 12, 15, 2, 13, 14, 14, 4, 14, 99, -1, 0, 1, 9],
                 &[3, 12, 5, 12, 15, 2, 13, 14, 14, 4, 14, 99,  0, 0, 0, 9],
             &["0\n"],
@@ -421,6 +450,9 @@ mod test {
 
     #[test]
     fn position_op_jfl_executes_jump_if_val_false() {
+        // Read input "0" into address 12. Jump to the address specified
+        // at address 15 (9) because address 12 is 0. Output the value in
+        // address 13 (0).
         #[rustfmt::skip]
         validate_program_with_io!(
             &mut [3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9],
@@ -432,6 +464,10 @@ mod test {
 
     #[test]
     fn position_op_jfl_does_not_execute_jump_if_val_true() {
+        // Read input "1" into address 12. Do not jump to the address
+        // specified at address 15 (9) because address 12 is not 0.
+        // Add the values at address 13 and 14 and store them at address
+        // 13 (0 + 1 => 1). Output the value in address 13 (1).
         #[rustfmt::skip]
         validate_program_with_io!(
             &mut [3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9],
@@ -505,6 +541,9 @@ mod test {
 
     #[test]
     fn immediate_op_jtr_executes_jump_if_val_true() {
+        // Read input of "1" and store it in address 3
+        // Jump to address 9 because the param is 1
+        // Output the value at address 12 (1)
         #[rustfmt::skip]
         validate_program_with_io!(
             &mut [3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1],
@@ -516,14 +555,12 @@ mod test {
 
     #[test]
     fn immediate_op_jtr_does_not_execute_jump_if_val_false() {
+        // Read input "0" into address 3. Do not jump to address 9
+        // because the first param is 0. Add 0 with itself and
+        // store it in address 12. Output the value in address 12
+        // (0).
         #[rustfmt::skip]
         validate_program_with_io!(
-            // Read input "0" into address 12
-            // Do not jump to address 15 because address 12 is not 1
-            // Add values at address 13 and at address 14 and
-            // the result in address 13.
-            // Output the value in address 13.
-            // Exit
             &mut [3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1],
                 &[3, 3, 1105,  0, 9, 1101, 0, 0, 12, 4, 12, 99, 0],
             &["0\n"],
@@ -533,17 +570,23 @@ mod test {
 
     #[test]
     fn immediate_op_jfl_executes_jump_if_val_false() {
+        // Read input "0" into address 3. Jump to address 9 because
+        // the first param is 0. Output the value in address 12 (0).
         #[rustfmt::skip]
         validate_program_with_io!(
             &mut [3, 3, 1106, -1, 9, 1101, 0, 1, 12, 4, 12, 99, 0],
                 &[3, 3, 1106,  0, 9, 1101, 0, 1, 12, 4, 12, 99, 0],
             &["0\n"],
-            &["1"],
+            &["0"],
         );
     }
 
     #[test]
     fn immediate_op_jfl_does_not_execute_jump_if_val_true() {
+        // Read input "1" into address 3. Do not jump to address 9
+        // because the first param is not 0. Add 0 to 1 and store
+        // the result in address 12 (1). Output the value in
+        // address 12 (1).
         #[rustfmt::skip]
         validate_program_with_io!(
             &mut [3, 3, 1106, -1, 9, 1101, 0, 1, 12, 4, 12, 99, 0],
