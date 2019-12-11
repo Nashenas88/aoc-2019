@@ -17,6 +17,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "day11"
+version = "0.1.0"
+dependencies = [
+ "int_code_emulator 0.1.0",
+]
+
+[[package]]
 name = "day2"
 version = "0.1.0"
 
@@ -46,6 +53,10 @@ version = "0.1.0"
 
 [[package]]
 name = "day9"
+version = "0.1.0"
+
+[[package]]
+name = "int_code_emulator"
 version = "0.1.0"
 
 [[package]]
